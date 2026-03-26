@@ -13,7 +13,7 @@ h2{font-size:17px;font-weight:600;margin-bottom:12px}
 label{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;margin-top:12px}
 select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;background:#fff;color:#111}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid #ddd;border-radius:10px;overflow:hidden}
-.tab{padding:12px;text-align:center;font-size:14px;font-weight:600;cursor:pointer;background:#fff;color:#666;border:none}
+.tab{padding:12px;text-align:center;font-size:14px;font-weight:600;cursor:pointer;background:#fff;color:#666;border:none;width:100%}
 .tab.active{background:#0064d2;color:#fff}
 .filters{background:#fff;border-radius:10px;padding:14px;margin-top:14px;border:1px solid #eee}
 .filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
@@ -44,12 +44,11 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 .prog-bar{background:#eee;border-radius:4px;height:6px;margin-top:10px}
 .prog-fill{background:#0064d2;border-radius:4px;height:6px;width:0%;transition:width .3s}
 .prog-text{font-size:12px;color:#888;text-align:center;margin-top:6px}
-.result-item{background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.result-item{background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
 .result-car{font-size:15px;font-weight:600;color:#111}
 .result-price{font-size:15px;font-weight:600;color:#28a745}
 .result-row{display:flex;justify-content:space-between;align-items:center}
 .result-sub{font-size:12px;color:#888;margin-top:3px}
-.tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;margin-right:4px;margin-top:4px;background:#f0f0f0;color:#444}
 </style>
 </head>
 <body>
@@ -103,7 +102,7 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
         <div><label>Min price ($)</label><input type="number" id="p2-min-price" value="50" min="0" step="10"></div>
         <div><label>Min sales/mo</label><input type="number" id="p2-min-sales" value="1" min="1"></div>
       </div>
-      <div style="margin-top:10px"><b style="font-size:13px;color:#444">Year range (for your junkyard)</b></div>
+      <div style="margin-top:10px"><b style="font-size:13px;color:#444">Year range</b></div>
       <div class="year-range">
         <div><label>From year</label><input type="number" id="year-from" value="1995" min="1980" max="2020"></div>
         <div><label>To year</label><input type="number" id="year-to" value="2015" min="1980" max="2024"></div>
@@ -194,7 +193,11 @@ function switchTab(n){
   document.getElementById('mode2').style.display=n===2?'block':'none';
 }
 
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
 
 async function fetchPart(query){
   const r=await fetch('/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keywords:query,max_search_results:'60',remove_outliers:'true',site_id:'0',aspects:[{name:'LH_ItemCondition',value:'3000'}]})});
@@ -202,19 +205,21 @@ async function fetchPart(query){
 }
 
 async function searchByCar(){
-  const make=document.getElementById('make').value,model=document.getElementById('model').value,year=document.getElementById('year').value;
+  const make=document.getElementById('make').value;
+  const model=document.getElementById('model').value;
+  const year=document.getElementById('year').value;
   const minPrice=parseFloat(document.getElementById('min-price').value)||0;
   const minSales=parseInt(document.getElementById('min-sales').value)||1;
   const sortBy=document.getElementById('sort-by').value;
   const partsCount=parseInt(document.getElementById('parts-count').value)||40;
   if(!make||!model||!year){document.getElementById('err1').innerHTML='<div class="error">Please select make, model and year</div>';return;}
   document.getElementById('err1').innerHTML='';
-  const btn=document.getElementById('btn1');btn.disabled=true;btn.textContent='Loading...';
+  const btn=document.getElementById('btn1');
+  btn.disabled=true;btn.textContent='Loading...';
   document.getElementById('res-tag').innerHTML=`<b>${year} ${make} ${model}</b>`;
   document.getElementById('res-title').textContent='Top Parts';
   show('s-results');
   document.getElementById('res-list').innerHTML=`<div class="loading">Searching eBay...<div class="prog-bar"><div class="prog-fill" id="pfill"></div></div><div class="prog-text" id="ptext">0 / ${partsCount}</div></div>`;
-
   const partsToCheck=allParts.slice(0,partsCount),results=[],BATCH=5;
   for(let i=0;i<partsToCheck.length;i+=BATCH){
     const batch=partsToCheck.slice(i,i+BATCH);
@@ -223,7 +228,7 @@ async function searchByCar(){
         const data=await fetchPart(`${year} ${make} ${model} ${part} used`);
         if(data&&data.success&&data.average_price&&data.results>0){
           const sold=Math.max(1,Math.round(data.results/3)),price=Math.round(data.average_price);
-          if(price>=minPrice&&sold>=minSales) results.push({name:part.charAt(0).toUpperCase()+part.slice(1),price,minPrice:Math.round(data.min_price),maxPrice:Math.round(data.max_price),sold,totalResults:data.results,revenue:Math.round(price*sold),query:`${year} ${make} ${model} ${part}`});
+          if(price>=minPrice&&sold>=minSales)results.push({name:part.charAt(0).toUpperCase()+part.slice(1),price,minPrice:Math.round(data.min_price),maxPrice:Math.round(data.max_price),sold,totalResults:data.results,revenue:Math.round(price*sold),query:`${year} ${make} ${model} ${part}`});
         }
       }catch(e){}
     }));
@@ -235,8 +240,8 @@ async function searchByCar(){
   if(sortBy==='price')results.sort((a,b)=>b.price-a.price);
   else if(sortBy==='revenue')results.sort((a,b)=>b.revenue-a.revenue);
   else results.sort((a,b)=>b.sold-a.sold);
-  window._results=results;window._mode='car';
-  renderResults(results);
+  window._results=results;
+  renderCarResults(results);
   btn.disabled=false;btn.textContent='Find Parts';
 }
 
@@ -248,19 +253,18 @@ async function searchByPart(){
   const yearTo=parseInt(document.getElementById('year-to').value)||2015;
   if(!query){document.getElementById('err2').innerHTML='<div class="error">Please enter a part name</div>';return;}
   document.getElementById('err2').innerHTML='';
-  const btn=document.getElementById('btn2');btn.disabled=true;btn.textContent='Searching...');
+  const btn=document.getElementById('btn2');
+  btn.disabled=true;btn.textContent='Searching...';
   document.getElementById('res-tag').innerHTML=`<b>${query}</b> &nbsp;·&nbsp; ${yearFrom}–${yearTo}`;
   document.getElementById('res-title').textContent='Cars with this part';
   show('s-results');
   document.getElementById('res-list').innerHTML='<div class="loading">Fetching eBay sold listings...</div>';
-
   try{
     const data=await fetchPart(`${query} used OEM`);
     if(!data||!data.success||!data.products||!data.products.length){
       document.getElementById('res-list').innerHTML='<div class="loading">No results found. Try different keywords.</div>';
       btn.disabled=false;btn.textContent='Search eBay';return;
     }
-
     const carMap={};
     data.products.forEach(item=>{
       const title=item.title||'';
@@ -270,28 +274,24 @@ async function searchByPart(){
       if(yr<yearFrom||yr>yearTo)return;
       const price=parseFloat(item.sale_price)||0;
       if(price<minPrice)return;
-
       const makeList=['Acura','Audi','BMW','Buick','Cadillac','Chevrolet','Chevy','Chrysler','Dodge','Ford','GMC','Honda','Hyundai','Infiniti','Jeep','Kia','Lexus','Lincoln','Mazda','Mercedes','Mitsubishi','Nissan','Oldsmobile','Pontiac','Saturn','Subaru','Toyota','Volkswagen','VW','Volvo','Ram','Mercury'];
       let detectedMake='';
       for(const mk of makeList){if(title.toLowerCase().includes(mk.toLowerCase())){detectedMake=mk;break;}}
       if(!detectedMake)return;
-
       const key=`${yr} ${detectedMake}`;
       if(!carMap[key])carMap[key]={make:detectedMake,year:yr,prices:[],titles:[]};
       carMap[key].prices.push(price);
       carMap[key].titles.push(title);
     });
-
     const results=Object.entries(carMap).map(([key,v])=>{
       const avg=Math.round(v.prices.reduce((a,b)=>a+b,0)/v.prices.length);
       const max=Math.round(Math.max(...v.prices));
       const sold=Math.max(1,Math.round(v.prices.length/3));
       return{key,make:v.make,year:v.year,avgPrice:avg,maxPrice:max,sold,count:v.prices.length,titles:v.titles};
     }).filter(r=>r.sold>=minSales).sort((a,b)=>b.avgPrice-a.avgPrice);
-
-    window._results=results;window._mode='part';window._partQuery=query;
+    window._results=results;window._partQuery=query;
     if(!results.length){
-      document.getElementById('res-list').innerHTML='<div class="loading">No matching cars found in year range. Try adjusting filters.</div>';
+      document.getElementById('res-list').innerHTML='<div class="loading">No matching cars found. Try adjusting year range or filters.</div>';
     }else{
       document.getElementById('res-list').innerHTML=results.map((r,i)=>`
         <div class="result-item" onclick="showPartDetail(${i})">
@@ -309,7 +309,7 @@ async function searchByPart(){
   btn.disabled=false;btn.textContent='Search eBay';
 }
 
-function renderResults(results){
+function renderCarResults(results){
   if(!results.length){document.getElementById('res-list').innerHTML='<div class="loading">Nothing found. Try lowering filters.</div>';return;}
   document.getElementById('res-list').innerHTML=results.map((p,i)=>`
     <div class="card" onclick="showCarDetail(${i})">
