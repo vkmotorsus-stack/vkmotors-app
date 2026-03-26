@@ -17,7 +17,6 @@ app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
 
-
 app.post("/analyze", async (req, res) => {
   try {
     const { make, model, year } = req.body;
@@ -41,7 +40,7 @@ app.post("/analyze", async (req, res) => {
         },
         body: JSON.stringify({
           keywords: query,
-          maxResults: 20
+          max_search_results: 20
         })
       }
     );
@@ -67,7 +66,6 @@ app.post("/analyze", async (req, res) => {
     });
   }
 });
-
 
 const PORT = process.env.PORT || 3000;
 
