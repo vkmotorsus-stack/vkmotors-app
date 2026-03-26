@@ -8,16 +8,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#111}
 .app{max-width:480px;margin:0 auto;padding:1rem}
-h1{font-size:20px;font-weight:600;margin-bottom:1rem;color:#111}
+h1{font-size:20px;font-weight:600;margin-bottom:1rem}
 h2{font-size:17px;font-weight:600;margin-bottom:12px}
 label{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;margin-top:12px}
 select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;background:#fff;color:#111}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .filters{background:#fff;border-radius:10px;padding:14px;margin-top:14px;border:1px solid #eee}
 .filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .btn{width:100%;padding:13px;font-size:16px;font-weight:600;background:#0064d2;color:#fff;border:none;border-radius:10px;cursor:pointer;margin-top:14px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.btn-secondary{background:#fff;color:#0064d2;border:1px solid #0064d2}
 .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer}
 .card:hover{border-color:#0064d2}
 .card-top{display:flex;justify-content:space-between;align-items:flex-start}
@@ -39,7 +37,9 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 .screen.active{display:block}
 .car-tag{background:#e8f0fe;border-radius:8px;padding:8px 12px;font-size:13px;color:#444;margin-bottom:12px}
 .car-tag b{color:#111}
-.prog{font-size:13px;color:#888;margin-top:6px}
+.prog-bar{background:#eee;border-radius:4px;height:6px;margin-top:10px}
+.prog-fill{background:#0064d2;border-radius:4px;height:6px;width:0%;transition:width .3s}
+.prog-text{font-size:12px;color:#888;text-align:center;margin-top:6px}
 </style>
 </head>
 <body>
@@ -48,50 +48,32 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 <div class="screen active" id="s-search">
   <h1>VK Motors Analyzer</h1>
   <label>Make</label>
-  <select id="make">
-    <option value="">— select —</option>
-    <option>Honda</option><option>Toyota</option><option>Ford</option>
-    <option>Chevrolet</option><option>Nissan</option><option>BMW</option>
-    <option>Mercedes-Benz</option><option>Dodge</option><option>Jeep</option>
-    <option>Hyundai</option><option>Kia</option><option>Subaru</option>
-    <option>Mazda</option><option>Volkswagen</option><option>Audi</option>
-    <option>Lexus</option><option>Acura</option><option>Infiniti</option>
-  </select>
+  <select id="make"><option value="">— select —</option></select>
   <label>Model</label>
   <select id="model"><option value="">— select make first —</option></select>
   <label>Year</label>
   <select id="year"><option value="">— select year —</option></select>
-
   <div class="filters">
     <b style="font-size:14px">Filters</b>
     <div class="filter-grid">
-      <div>
-        <label>Min price ($)</label>
-        <input type="number" id="min-price" value="30" min="0" step="10">
-      </div>
-      <div>
-        <label>Min sales/mo</label>
-        <input type="number" id="min-sales" value="2" min="1">
-      </div>
-      <div>
-        <label>Sort by</label>
+      <div><label>Min price ($)</label><input type="number" id="min-price" value="50" min="0" step="10"></div>
+      <div><label>Min sales/mo</label><input type="number" id="min-sales" value="2" min="1"></div>
+      <div><label>Sort by</label>
         <select id="sort-by">
+          <option value="price">Price (high first)</option>
           <option value="revenue">Revenue/mo</option>
-          <option value="price">Price</option>
-          <option value="sales">Sales</option>
+          <option value="sales">Sales/mo</option>
         </select>
       </div>
-      <div>
-        <label>Parts to check</label>
+      <div><label>Speed</label>
         <select id="parts-count">
-          <option value="6">6 (fast)</option>
-          <option value="10" selected>10 (standard)</option>
-          <option value="15">15 (full)</option>
+          <option value="20">Fast (20 parts)</option>
+          <option value="40" selected>Normal (40 parts)</option>
+          <option value="60">Full (60 parts)</option>
         </select>
       </div>
     </div>
   </div>
-
   <button class="btn" id="search-btn" onclick="searchParts()">Find Parts</button>
   <div id="search-error"></div>
 </div>
@@ -109,38 +91,60 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 </div>
 
 </div>
-
 <script>
-const SERVER = '';
-
 const modelsMap = {
-  Honda:['Accord','Civic','CR-V','Pilot','Odyssey','Fit','HR-V','Ridgeline'],
-  Toyota:['Camry','Corolla','RAV4','Highlander','Tacoma','4Runner','Sienna','Tundra'],
-  Ford:['F-150','Mustang','Explorer','Escape','Focus','Edge','Expedition','Ranger'],
-  Chevrolet:['Silverado','Malibu','Equinox','Traverse','Tahoe','Impala','Suburban','Colorado'],
-  Nissan:['Altima','Sentra','Rogue','Pathfinder','Murano','Frontier','Maxima','Titan'],
-  BMW:['3 Series','5 Series','X3','X5','7 Series','X1','X7','4 Series'],
-  'Mercedes-Benz':['C-Class','E-Class','GLE','GLC','S-Class','A-Class','GLA','ML-Class'],
-  Dodge:['Ram 1500','Charger','Challenger','Durango','Journey','Grand Caravan'],
-  Jeep:['Wrangler','Cherokee','Grand Cherokee','Compass','Renegade','Liberty'],
-  Hyundai:['Elantra','Sonata','Tucson','Santa Fe','Accent','Veloster','Ioniq'],
-  Kia:['Optima','Sorento','Sportage','Soul','Forte','Telluride','Rio'],
-  Subaru:['Outback','Forester','Impreza','Legacy','Crosstrek','WRX'],
-  Mazda:['Mazda3','Mazda6','CX-5','CX-9','MX-5','CX-30'],
-  Volkswagen:['Jetta','Passat','Tiguan','Atlas','Golf','GTI'],
-  Audi:['A4','A6','Q5','Q7','A3','Q3','A8'],
-  Lexus:['ES','RX','IS','GX','LS','NX','LX'],
-  Acura:['MDX','RDX','TLX','ILX','TSX','TL'],
-  Infiniti:['Q50','QX60','G37','QX80','Q60','FX35']
+  'Acura':['CL','ILX','Integra','Legend','MDX','RDX','RL','RSX','TL','TLX','TSX','ZDX'],
+  'Audi':['A3','A4','A5','A6','A7','A8','Q3','Q5','Q7','Q8','R8','S4','S5','S6','TT'],
+  'BMW':['1 Series','2 Series','3 Series','4 Series','5 Series','6 Series','7 Series','8 Series','M3','M5','X1','X2','X3','X4','X5','X6','X7','Z3','Z4'],
+  'Buick':['Enclave','Encore','Envision','LaCrosse','LeSabre','Lucerne','Regal','Rendezvous','Riviera','Terraza','Verano'],
+  'Cadillac':['ATS','CT4','CT5','CT6','CTS','DeVille','DTS','Eldorado','Escalade','Seville','SRX','STS','XLR','XT4','XT5','XT6'],
+  'Chevrolet':['Avalanche','Blazer','Camaro','Colorado','Corvette','Cruze','Equinox','Express','HHR','Impala','Malibu','Monte Carlo','S10','Silverado','Sonic','Spark','Suburban','Tahoe','Tracker','TrailBlazer','Traverse','Trax'],
+  'Chrysler':['200','300','Aspen','Concorde','Crossfire','LHS','Pacifica','PT Cruiser','Sebring','Town & Country','Voyager'],
+  'Dodge':['Avenger','Caliber','Challenger','Charger','Dakota','Dart','Durango','Grand Caravan','Journey','Magnum','Neon','Ram 1500','Ram 2500','Viper'],
+  'Ford':['Bronco','Crown Victoria','E-Series','Edge','Escape','Excursion','Expedition','Explorer','F-150','F-250','F-350','Fiesta','Five Hundred','Focus','Fusion','Maverick','Mustang','Ranger','Taurus','Thunderbird','Transit'],
+  'GMC':['Acadia','Canyon','Envoy','Jimmy','Safari','Sierra','Sonoma','Suburban','Terrain','Typhoon','Yukon'],
+  'Honda':['Accord','Civic','CR-V','CR-Z','Element','Fit','HR-V','Insight','Odyssey','Passport','Pilot','Prelude','Ridgeline','S2000'],
+  'Hyundai':['Accent','Azera','Elantra','Genesis','Ioniq','Kona','Palisade','Santa Fe','Sonata','Tiburon','Tucson','Veloster','Venue'],
+  'Infiniti':['EX35','FX35','FX45','G35','G37','I30','I35','J30','JX35','M35','M45','Q45','Q50','Q60','Q70','QX4','QX50','QX56','QX60','QX80'],
+  'Jeep':['Cherokee','Commander','Compass','CJ','Grand Cherokee','Liberty','Patriot','Renegade','Wrangler'],
+  'Kia':['Cadenza','Forte','K5','Niro','Optima','Rio','Sedona','Sorento','Soul','Sportage','Stinger','Telluride'],
+  'Lexus':['CT200h','ES250','ES300','ES330','ES350','GS300','GS350','GS400','GS430','GS450h','GX460','GX470','IS250','IS300','IS350','LC500','LS400','LS430','LS460','LS500','LX470','LX570','NX200t','NX300','RX300','RX330','RX350','RX400h','RX450h','SC300','SC400','SC430','UX200'],
+  'Lincoln':['Aviator','Blackwood','Continental','LS','Mark LT','MKC','MKS','MKT','MKX','MKZ','Navigator','Town Car','Zephyr'],
+  'Mazda':['626','929','B-Series','CX-3','CX-5','CX-7','CX-9','CX-30','Mazda2','Mazda3','Mazda5','Mazda6','Miata MX-5','MPV','Protege','RX-7','RX-8','Tribute'],
+  'Mercedes-Benz':['A-Class','B-Class','C-Class','CL-Class','CLA-Class','CLK-Class','CLS-Class','E-Class','G-Class','GL-Class','GLA-Class','GLC-Class','GLE-Class','GLK-Class','GLS-Class','ML-Class','S-Class','SL-Class','SLC-Class','SLK-Class','SLS AMG'],
+  'Mercury':['Grand Marquis','Mariner','Marquis','Milan','Montego','Monterey','Mountaineer','Mystique','Sable','Topaz','Tracer','Villager'],
+  'Mitsubishi':['Eclipse','Eclipse Cross','Endeavor','Galant','Lancer','Mirage','Montero','Outlander','Outlander Sport','Raider'],
+  'Nissan':['240SX','350Z','370Z','Altima','Armada','Cube','Frontier','GT-R','Juke','Leaf','Maxima','Murano','NV','Pathfinder','Quest','Rogue','Sentra','Titan','Versa','Xterra'],
+  'Oldsmobile':['Alero','Aurora','Bravada','Cutlass','Cutlass Supreme','Intrigue','Silhouette','Toronado'],
+  'Pontiac':['Aztek','Bonneville','Firebird','G5','G6','G8','GTO','Montana','Solstice','Sunfire','Torrent','Trans Am','Vibe'],
+  'Ram':['1500','2500','3500','ProMaster','ProMaster City'],
+  'Saturn':['Aura','Ion','L-Series','Outlook','Relay','Sky','SL','SW','Vue'],
+  'Subaru':['Ascent','BRZ','Crosstrek','Forester','Impreza','Legacy','Outback','SVX','Tribeca','WRX','XV'],
+  'Toyota':['4Runner','Avalon','Camry','Celica','Corolla','Echo','FJ Cruiser','Highlander','Land Cruiser','MR2','Matrix','Prius','RAV4','Sequoia','Sienna','Solara','Supra','T100','Tacoma','Tundra','Venza','Yaris'],
+  'Volkswagen':['Beetle','CC','Eos','Golf','GTI','Jetta','Passat','Phaeton','Routan','Tiguan','Touareg'],
+  'Volvo':['C30','C70','S40','S60','S70','S80','S90','V40','V50','V60','V70','V90','XC40','XC60','XC70','XC90']
 };
 
 const allParts = [
-  'alternator','headlight assembly','tail light','side mirror',
-  'door handle','starter motor','window regulator','radiator',
-  'throttle body','ABS module','catalytic converter','oxygen sensor',
-  'CV axle','wheel hub','brake caliper','fuel pump',
-  'ignition coil','mass air flow sensor','power steering pump','AC compressor'
+  'seat cover','leather seat','seat cushion','armrest','center console lid','center console',
+  'door panel','sun visor','overhead console','cargo cover','trunk cover','rear shelf',
+  'parcel shelf','floor mat','steering wheel','shift knob','gear selector','shift boot',
+  'window motor','blower motor','power antenna','clock spring','door lock actuator',
+  'mirror motor','sunroof motor','convertible top motor','seat motor','headrest',
+  'dash bezel','radio bezel','cup holder','ashtray','coin tray','center dash trim',
+  'glove box','glove box door','instrument cluster bezel','AC vent trim',
+  'emblem','grille insert','hood ornament','door molding','window trim',
+  'bumper grille','grille','license plate frame','antenna mast',
+  'fuel door','gas cap door','trunk lid trim','trunk latch','hood latch',
+  'door sill plate','kick panel','grab handle','coat hook',
+  'mirror glass','mirror cover','mirror turn signal','puddle light',
+  'interior light','dome light','map light','trunk light',
+  'seat belt buckle','seat belt retractor','child seat anchor'
 ];
+
+const makes = Object.keys(modelsMap).sort();
+const makeEl = document.getElementById('make');
+makes.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; makeEl.appendChild(o); });
 
 document.getElementById('make').addEventListener('change', function(){
   const m = document.getElementById('model');
@@ -148,130 +152,72 @@ document.getElementById('make').addEventListener('change', function(){
   const list = modelsMap[this.value]||[];
   m.innerHTML = list.length ? list.map(x=>`<option>${x}</option>`).join('') : '<option>— select make first —</option>';
   y.innerHTML = '<option value="">— select year —</option>';
-  if(list.length){
-    const cur = new Date().getFullYear();
-    for(let yr=cur;yr>=1990;yr--) y.innerHTML+=`<option>${yr}</option>`;
-  }
+  if(list.length){ const cur=new Date().getFullYear(); for(let yr=cur;yr>=1985;yr--) y.innerHTML+=`<option>${yr}</option>`; }
 });
 
-function show(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  window.scrollTo(0,0);
-}
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
 
 async function fetchPart(query){
-  const resp = await fetch('/search', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      keywords: query,
-      max_search_results: "60",
-      remove_outliers: "true",
-      site_id: "0",
-      aspects: [{"name":"LH_ItemCondition","value":"3000"}]
-    })
-  });
-  return await resp.json();
+  const r = await fetch('/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keywords:query,max_search_results:'60',remove_outliers:'true',site_id:'0',aspects:[{name:'LH_ItemCondition',value:'3000'}]})});
+  return r.json();
 }
 
 async function searchParts(){
-  const make = document.getElementById('make').value;
-  const model = document.getElementById('model').value;
-  const year = document.getElementById('year').value;
-  const minPrice = parseFloat(document.getElementById('min-price').value)||0;
-  const minSales = parseInt(document.getElementById('min-sales').value)||1;
-  const sortBy = document.getElementById('sort-by').value;
-  const partsCount = parseInt(document.getElementById('parts-count').value)||10;
-
-  if(!make||!model||!year){
-    document.getElementById('search-error').innerHTML = '<div class="error">Please select make, model and year</div>';
-    return;
-  }
-  document.getElementById('search-error').innerHTML = '';
-
-  const btn = document.getElementById('search-btn');
-  btn.disabled = true;
-  btn.textContent = 'Loading...';
-
-  document.getElementById('car-tag').innerHTML = `<b>${year} ${make} ${model}</b>`;
+  const make=document.getElementById('make').value;
+  const model=document.getElementById('model').value;
+  const year=document.getElementById('year').value;
+  const minPrice=parseFloat(document.getElementById('min-price').value)||0;
+  const minSales=parseInt(document.getElementById('min-sales').value)||1;
+  const sortBy=document.getElementById('sort-by').value;
+  const partsCount=parseInt(document.getElementById('parts-count').value)||40;
+  if(!make||!model||!year){ document.getElementById('search-error').innerHTML='<div class="error">Please select make, model and year</div>'; return; }
+  document.getElementById('search-error').innerHTML='';
+  const btn=document.getElementById('search-btn'); btn.disabled=true; btn.textContent='Loading...';
+  document.getElementById('car-tag').innerHTML=`<b>${year} ${make} ${model}</b>`;
   show('s-results');
-  document.getElementById('parts-list').innerHTML = `<div class="loading">Fetching eBay data...<br><span class="prog" id="prog">0 / ${partsCount}</span></div>`;
+  document.getElementById('parts-list').innerHTML=`<div class="loading">Searching eBay sold listings...<div class="prog-bar"><div class="prog-fill" id="pfill"></div></div><div class="prog-text" id="ptext">0 / ${partsCount}</div></div>`;
 
-  const results = [];
-  const partsToCheck = allParts.slice(0, partsCount);
+  const partsToCheck=allParts.slice(0,partsCount);
+  const results=[];
+  const BATCH=5;
 
-  for(let i=0; i<partsToCheck.length; i++){
-    const part = partsToCheck[i];
-    const el = document.getElementById('prog');
-    if(el) el.textContent = `${i+1} / ${partsCount}`;
-    try {
-      const data = await fetchPart(`${year} ${make} ${model} ${part} used`);
-      if(data && data.success && data.average_price && data.results > 0){
-        const monthlySales = Math.max(1, Math.round(data.results / 3));
-        const avgPrice = Math.round(data.average_price);
-        if(avgPrice >= minPrice && monthlySales >= minSales){
-          results.push({
-            name: part.charAt(0).toUpperCase() + part.slice(1),
-            price: avgPrice,
-            minPrice: Math.round(data.min_price),
-            maxPrice: Math.round(data.max_price),
-            sold: monthlySales,
-            totalResults: data.results,
-            revenue: Math.round(avgPrice * monthlySales),
-            query: `${year} ${make} ${model} ${part}`
-          });
+  for(let i=0;i<partsToCheck.length;i+=BATCH){
+    const batch=partsToCheck.slice(i,i+BATCH);
+    await Promise.all(batch.map(async part=>{
+      try{
+        const data=await fetchPart(`${year} ${make} ${model} ${part} used`);
+        if(data&&data.success&&data.average_price&&data.results>0){
+          const sold=Math.max(1,Math.round(data.results/3));
+          const price=Math.round(data.average_price);
+          if(price>=minPrice&&sold>=minSales){
+            results.push({name:part.charAt(0).toUpperCase()+part.slice(1),price,minPrice:Math.round(data.min_price),maxPrice:Math.round(data.max_price),sold,totalResults:data.results,revenue:Math.round(price*sold),query:`${year} ${make} ${model} ${part}`});
+          }
         }
-      }
-    } catch(e){}
-    await new Promise(r=>setTimeout(r,400));
+      }catch(e){}
+    }));
+    const done=Math.min(i+BATCH,partsToCheck.length);
+    const pct=Math.round(done/partsToCheck.length*100);
+    const pf=document.getElementById('pfill'); if(pf) pf.style.width=pct+'%';
+    const pt=document.getElementById('ptext'); if(pt) pt.textContent=`${done} / ${partsToCheck.length}`;
+    await new Promise(r=>setTimeout(r,300));
   }
 
-  if(sortBy==='revenue') results.sort((a,b)=>b.revenue-a.revenue);
-  else if(sortBy==='price') results.sort((a,b)=>b.price-a.price);
+  if(sortBy==='price') results.sort((a,b)=>b.price-a.price);
+  else if(sortBy==='revenue') results.sort((a,b)=>b.revenue-a.revenue);
   else results.sort((a,b)=>b.sold-a.sold);
 
-  window._results = results;
-  window._car = `${year} ${make} ${model}`;
+  window._results=results; window._car=`${year} ${make} ${model}`;
 
-  if(results.length===0){
-    document.getElementById('parts-list').innerHTML = '<div class="loading">Nothing found. Try lowering the filters.</div>';
-  } else {
-    document.getElementById('parts-list').innerHTML = results.map((p,i)=>`
-      <div class="card" onclick="showDetail(${i})">
-        ${p.revenue>500?'<span class="badge hot">HOT</span>':p.revenue>150?'<span class="badge good">GOOD</span>':''}
-        <div class="card-top">
-          <div class="card-name">${p.name}</div>
-          <div><div class="card-price">$${p.price}</div><div class="card-sub">${p.sold} sold/mo</div></div>
-        </div>
-        <div class="card-sub" style="margin-top:5px">Revenue/mo: $${p.revenue}</div>
-      </div>
-    `).join('');
-  }
+  if(!results.length){ document.getElementById('parts-list').innerHTML='<div class="loading">Nothing found. Try lowering the filters.</div>'; }
+  else{ document.getElementById('parts-list').innerHTML=results.map((p,i)=>`<div class="card" onclick="showDetail(${i})">${p.price>=200?'<span class="badge hot">$$$</span>':p.revenue>300?'<span class="badge good">HOT</span>':''}<div class="card-top"><div class="card-name">${p.name}</div><div><div class="card-price">$${p.price}</div><div class="card-sub">${p.sold} sold/mo</div></div></div><div class="card-sub" style="margin-top:5px">Revenue/mo: $${p.revenue} &nbsp;·&nbsp; max: $${p.maxPrice}</div></div>`).join(''); }
 
-  btn.disabled=false;
-  btn.textContent='Find Parts';
+  btn.disabled=false; btn.textContent='Find Parts';
 }
 
 function showDetail(i){
-  const p = window._results[i];
-  const car = window._car;
-  const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(p.query)}&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`;
-  document.getElementById('detail-content').innerHTML = `
-    <h2>${p.name}</h2>
-    <div class="car-tag"><b>${car}</b></div>
-    <div class="metrics">
-      <div class="metric"><div class="metric-val">$${p.price}</div><div class="metric-lbl">avg price</div></div>
-      <div class="metric"><div class="metric-val">${p.sold}</div><div class="metric-lbl">sold/mo</div></div>
-      <div class="metric"><div class="metric-val">$${p.revenue}</div><div class="metric-lbl">revenue/mo</div></div>
-    </div>
-    <div class="metrics">
-      <div class="metric"><div class="metric-val">$${p.minPrice}</div><div class="metric-lbl">min price</div></div>
-      <div class="metric"><div class="metric-val">$${p.maxPrice}</div><div class="metric-lbl">max price</div></div>
-      <div class="metric"><div class="metric-val">${p.totalResults}</div><div class="metric-lbl">total sold</div></div>
-    </div>
-    <a class="ebay-link" href="${ebayUrl}" target="_blank">Check on eBay Sold Items</a>
-  `;
+  const p=window._results[i]; const car=window._car;
+  const url=`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(p.query)}&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`;
+  document.getElementById('detail-content').innerHTML=`<h2>${p.name}</h2><div class="car-tag"><b>${car}</b></div><div class="metrics"><div class="metric"><div class="metric-val">$${p.price}</div><div class="metric-lbl">avg price</div></div><div class="metric"><div class="metric-val">${p.sold}</div><div class="metric-lbl">sold/mo</div></div><div class="metric"><div class="metric-val">$${p.revenue}</div><div class="metric-lbl">revenue/mo</div></div></div><div class="metrics"><div class="metric"><div class="metric-val">$${p.minPrice}</div><div class="metric-lbl">min</div></div><div class="metric"><div class="metric-val">$${p.maxPrice}</div><div class="metric-lbl">max</div></div><div class="metric"><div class="metric-val">${p.totalResults}</div><div class="metric-lbl">total sold</div></div></div><a class="ebay-link" href="${url}" target="_blank">Check on eBay Sold Items</a>`;
   show('s-detail');
 }
 </script>
