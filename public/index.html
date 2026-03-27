@@ -84,7 +84,7 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
           <select id="parts-count">
             <option value="20">Fast (20)</option>
             <option value="40" selected>Normal (40)</option>
-            <option value="60">Full (60)</option>
+            <option value="80">Full (80)</option>
           </select>
         </div>
       </div>
@@ -95,7 +95,7 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 
   <div id="mode2" style="display:none">
     <label>Part name (in English)</label>
-    <input type="text" id="part-query" placeholder="e.g. door mirror left, seat cover, shift knob">
+    <input type="text" id="part-query" placeholder="e.g. door mirror, navigation screen, clock spring">
     <div class="filters">
       <b style="font-size:14px">Filters</b>
       <div class="filter-grid">
@@ -160,19 +160,35 @@ const modelsMap = {
 };
 
 const allParts = [
-  'door mirror assembly left','door mirror assembly right','side mirror assembly',
-  'seat cover leather','seat cushion','armrest','center console lid','center console',
-  'door panel','sun visor','overhead console','cargo cover','trunk cover',
-  'rear shelf','parcel shelf','floor mat set','steering wheel','shift knob',
-  'gear selector','shift boot','window motor','blower motor','power antenna',
-  'clock spring','door lock actuator','mirror motor','sunroof motor',
-  'convertible top motor','seat motor','headrest','dash bezel','radio bezel',
-  'cup holder','ashtray','coin tray','center dash trim','glove box door',
-  'instrument cluster bezel','AC vent trim','emblem','grille insert',
-  'hood ornament','door molding','bumper grille','license plate frame',
-  'antenna mast','fuel door','trunk latch','door sill plate',
-  'kick panel','grab handle','seat belt buckle','seat belt retractor',
-  'mirror glass','mirror cover','interior dome light','map light'
+  // Lights
+  'headlight assembly','tail light assembly','fog light assembly','third brake light',
+  'headlight ballast','headlight projector',
+  // Mirrors
+  'door mirror assembly','side mirror assembly','mirror glass','mirror turn signal',
+  // Interior trim
+  'dash bezel','radio bezel','center console','center armrest','door armrest',
+  'door panel','sun visor','overhead console','glove box','glove box door',
+  'air vent trim','instrument cluster bezel','pillar trim','door sill plate','kick panel',
+  // Seats
+  'seat leather cushion','headrest','seat belt buckle','seat belt retractor',
+  // Electronics & modules
+  'navigation display screen','audio amplifier','BCM module','SAM module',
+  'climate control unit','iDrive controller','MMI control panel','UConnect screen',
+  'fuse box module','ABS module','speedometer cluster',
+  // Switches & controls
+  'clock spring','steering column switch','turn signal switch','window switch',
+  'ignition switch','ignition button','door lock switch','mirror switch','seat switch',
+  // Motors & actuators
+  'door lock actuator','trunk latch actuator','liftgate window regulator motor',
+  'sunroof motor','liftgate motor','blower motor','power antenna motor',
+  'sliding door actuator','convertible top motor',
+  // Small exterior
+  'fender flare','license plate garnish','rear spoiler','emblem','grille insert',
+  'bumper grille','tow hook cover','fuel door',
+  // Other
+  'gear shift knob','gear selector assembly','steering wheel','shift boot',
+  'cup holder','ashtray','cargo tray liner','rear shelf','floor mat set',
+  'picnic table cargo liner','sun shade visor'
 ];
 
 const makes = Object.keys(modelsMap).sort();
@@ -287,7 +303,7 @@ async function searchByPart(){
       const avg=Math.round(v.prices.reduce((a,b)=>a+b,0)/v.prices.length);
       const max=Math.round(Math.max(...v.prices));
       const sold=Math.max(1,Math.round(v.prices.length/3));
-      return{key,make:v.make,year:v.year,avgPrice:avg,maxPrice:max,sold,count:v.prices.length,titles:v.titles};
+      return{key,make:v.make,year:v.year,avgPrice:avg,maxPrice:max,sold,count:v.prices.length};
     }).filter(r=>r.sold>=minSales).sort((a,b)=>b.avgPrice-a.avgPrice);
     window._results=results;window._partQuery=query;
     if(!results.length){
