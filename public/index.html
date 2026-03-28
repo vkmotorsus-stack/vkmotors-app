@@ -49,6 +49,7 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 .result-price{font-size:15px;font-weight:600;color:#28a745}
 .result-row{display:flex;justify-content:space-between;align-items:center}
 .result-sub{font-size:12px;color:#888;margin-top:3px}
+.stats-bar{background:#e8f0fe;border-radius:8px;padding:8px 12px;font-size:12px;color:#444;margin-bottom:12px;display:flex;justify-content:space-between}
 </style>
 </head>
 <body>
@@ -80,7 +81,7 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
             <option value="sales">Sales/mo</option>
           </select>
         </div>
-        <div><label>Speed</label>
+        <div><label>Parts to check</label>
           <select id="parts-count">
             <option value="20">Fast (20)</option>
             <option value="40" selected>Normal (40)</option>
@@ -116,6 +117,10 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 <div class="screen" id="s-results">
   <span class="back" onclick="show('s-main')">← Back</span>
   <div class="car-tag" id="res-tag"></div>
+  <div class="stats-bar" id="stats-bar" style="display:none">
+    <span id="stats-found">0 parts found</span>
+    <span id="stats-checked">0 checked</span>
+  </div>
   <h2 id="res-title">Results</h2>
   <div id="res-list"></div>
 </div>
@@ -160,39 +165,33 @@ const modelsMap = {
 };
 
 const allParts = [
-  // Lights
   'headlight assembly','tail light assembly','fog light assembly','third brake light',
-  'headlight ballast','headlight projector',
-  // Mirrors
+  'headlight ballast HID','headlight projector',
   'door mirror assembly','side mirror assembly','mirror glass','mirror turn signal',
-  // Interior trim
   'dash bezel','radio bezel','center console','center armrest','door armrest',
   'door panel','sun visor','overhead console','glove box','glove box door',
-  'air vent trim','instrument cluster bezel','pillar trim','door sill plate','kick panel',
-  // Seats
+  'air vent trim','instrument cluster bezel','speedometer cluster','pillar trim',
+  'door sill plate','kick panel',
   'seat leather cushion','headrest','seat belt buckle','seat belt retractor',
-  // Electronics & modules
-  'navigation display screen','audio amplifier','BCM module','SAM module',
-  'climate control unit','iDrive controller','MMI control panel','UConnect screen',
-  'fuse box module','ABS module','speedometer cluster',
-  // Switches & controls
-  'clock spring','steering column switch','turn signal switch','window switch',
-  'ignition switch','ignition button','door lock switch','mirror switch','seat switch',
-  // Motors & actuators
+  'navigation display screen','audio amplifier Bose','audio amplifier Harman',
+  'BCM body control module','SAM control module','climate control unit',
+  'iDrive controller','MMI control panel','UConnect radio screen',
+  'fuse box module','ABS control module',
+  'clock spring','steering column switch','turn signal wiper switch',
+  'window switch','ignition switch cylinder','ignition button',
+  'door lock switch','mirror switch','seat memory switch',
   'door lock actuator','trunk latch actuator','liftgate window regulator motor',
-  'sunroof motor','liftgate motor','blower motor','power antenna motor',
-  'sliding door actuator','convertible top motor',
-  // Small exterior
-  'fender flare','license plate garnish','rear spoiler','emblem','grille insert',
-  'bumper grille','tow hook cover','fuel door',
-  // Other
+  'sunroof motor','liftgate motor','blower motor resistor',
+  'power antenna motor','sliding door actuator',
+  'fender flare','license plate garnish','rear spoiler brake light',
+  'emblem','grille insert','bumper grille','tow hook cover','fuel door',
   'gear shift knob','gear selector assembly','steering wheel','shift boot',
-  'cup holder','ashtray','cargo tray liner','rear shelf','floor mat set',
-  'picnic table cargo liner','sun shade visor'
+  'cup holder','ashtray','cargo tray liner','rear shelf parcel',
+  'floor mat set','picnic table cargo liner','sun shade'
 ];
 
-const makes = Object.keys(modelsMap).sort();
-const makeEl = document.getElementById('make');
+const makes=Object.keys(modelsMap).sort();
+const makeEl=document.getElementById('make');
 makes.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;makeEl.appendChild(o);});
 
 document.getElementById('make').addEventListener('change',function(){
@@ -228,35 +227,61 @@ async function searchByCar(){
   const minSales=parseInt(document.getElementById('min-sales').value)||1;
   const sortBy=document.getElementById('sort-by').value;
   const partsCount=parseInt(document.getElementById('parts-count').value)||40;
+
   if(!make||!model||!year){document.getElementById('err1').innerHTML='<div class="error">Please select make, model and year</div>';return;}
   document.getElementById('err1').innerHTML='';
+
   const btn=document.getElementById('btn1');
   btn.disabled=true;btn.textContent='Loading...';
   document.getElementById('res-tag').innerHTML=`<b>${year} ${make} ${model}</b>`;
   document.getElementById('res-title').textContent='Top Parts';
+  document.getElementById('stats-bar').style.display='none';
   show('s-results');
-  document.getElementById('res-list').innerHTML=`<div class="loading">Searching eBay...<div class="prog-bar"><div class="prog-fill" id="pfill"></div></div><div class="prog-text" id="ptext">0 / ${partsCount}</div></div>`;
-  const partsToCheck=allParts.slice(0,partsCount),results=[],BATCH=5;
+  document.getElementById('res-list').innerHTML=`<div class="loading">Searching eBay sold listings...<div class="prog-bar"><div class="prog-fill" id="pfill"></div></div><div class="prog-text" id="ptext">0 / ${partsCount}</div></div>`;
+
+  const partsToCheck=allParts.slice(0,partsCount);
+  const results=[];
+  const BATCH=5;
+
   for(let i=0;i<partsToCheck.length;i+=BATCH){
     const batch=partsToCheck.slice(i,i+BATCH);
     await Promise.all(batch.map(async part=>{
       try{
         const data=await fetchPart(`${year} ${make} ${model} ${part} used`);
-        if(data&&data.success&&data.average_price&&data.results>0){
-          const sold=Math.max(1,Math.round(data.results/3)),price=Math.round(data.average_price);
-          if(price>=minPrice&&sold>=minSales)results.push({name:part.charAt(0).toUpperCase()+part.slice(1),price,minPrice:Math.round(data.min_price),maxPrice:Math.round(data.max_price),sold,totalResults:data.results,revenue:Math.round(price*sold),query:`${year} ${make} ${model} ${part}`});
+        if(data&&data.success&&data.average_price>0&&data.results>0){
+          const avgPrice=parseFloat(data.average_price);
+          const sold=Math.max(1,Math.round(data.results/3));
+          // FIXED: строгая проверка фильтра по цене
+          if(avgPrice>=minPrice&&sold>=minSales){
+            results.push({
+              name:part.charAt(0).toUpperCase()+part.slice(1),
+              price:Math.round(avgPrice),
+              minPrice:Math.round(parseFloat(data.min_price)||0),
+              maxPrice:Math.round(parseFloat(data.max_price)||0),
+              sold,
+              totalResults:data.results,
+              revenue:Math.round(avgPrice*sold),
+              query:`${year} ${make} ${model} ${part}`
+            });
+          }
         }
       }catch(e){}
     }));
-    const done=Math.min(i+BATCH,partsToCheck.length),pct=Math.round(done/partsToCheck.length*100);
+    const done=Math.min(i+BATCH,partsToCheck.length);
+    const pct=Math.round(done/partsToCheck.length*100);
     const pf=document.getElementById('pfill');if(pf)pf.style.width=pct+'%';
     const pt=document.getElementById('ptext');if(pt)pt.textContent=`${done} / ${partsToCheck.length}`;
     await new Promise(r=>setTimeout(r,300));
   }
+
   if(sortBy==='price')results.sort((a,b)=>b.price-a.price);
   else if(sortBy==='revenue')results.sort((a,b)=>b.revenue-a.revenue);
   else results.sort((a,b)=>b.sold-a.sold);
+
   window._results=results;
+  document.getElementById('stats-bar').style.display='flex';
+  document.getElementById('stats-found').textContent=`${results.length} parts found`;
+  document.getElementById('stats-checked').textContent=`${partsToCheck.length} checked`;
   renderCarResults(results);
   btn.disabled=false;btn.textContent='Find Parts';
 }
@@ -267,21 +292,28 @@ async function searchByPart(){
   const minSales=parseInt(document.getElementById('p2-min-sales').value)||1;
   const yearFrom=parseInt(document.getElementById('year-from').value)||1990;
   const yearTo=parseInt(document.getElementById('year-to').value)||2015;
+
   if(!query){document.getElementById('err2').innerHTML='<div class="error">Please enter a part name</div>';return;}
   document.getElementById('err2').innerHTML='';
+
   const btn=document.getElementById('btn2');
   btn.disabled=true;btn.textContent='Searching...';
   document.getElementById('res-tag').innerHTML=`<b>${query}</b> &nbsp;·&nbsp; ${yearFrom}–${yearTo}`;
   document.getElementById('res-title').textContent='Cars with this part';
+  document.getElementById('stats-bar').style.display='none';
   show('s-results');
   document.getElementById('res-list').innerHTML='<div class="loading">Fetching eBay sold listings...</div>';
+
   try{
     const data=await fetchPart(`${query} used OEM`);
     if(!data||!data.success||!data.products||!data.products.length){
       document.getElementById('res-list').innerHTML='<div class="loading">No results found. Try different keywords.</div>';
       btn.disabled=false;btn.textContent='Search eBay';return;
     }
+
     const carMap={};
+    const makeList=['Acura','Audi','BMW','Buick','Cadillac','Chevrolet','Chevy','Chrysler','Dodge','Ford','GMC','Honda','Hyundai','Infiniti','Jeep','Kia','Lexus','Lincoln','Mazda','Mercedes','Mitsubishi','Nissan','Oldsmobile','Pontiac','Saturn','Subaru','Toyota','Volkswagen','VW','Volvo','Ram','Mercury'];
+
     data.products.forEach(item=>{
       const title=item.title||'';
       const yearMatch=title.match(/\b(19[89]\d|20[0-2]\d)\b/g);
@@ -290,22 +322,23 @@ async function searchByPart(){
       if(yr<yearFrom||yr>yearTo)return;
       const price=parseFloat(item.sale_price)||0;
       if(price<minPrice)return;
-      const makeList=['Acura','Audi','BMW','Buick','Cadillac','Chevrolet','Chevy','Chrysler','Dodge','Ford','GMC','Honda','Hyundai','Infiniti','Jeep','Kia','Lexus','Lincoln','Mazda','Mercedes','Mitsubishi','Nissan','Oldsmobile','Pontiac','Saturn','Subaru','Toyota','Volkswagen','VW','Volvo','Ram','Mercury'];
       let detectedMake='';
       for(const mk of makeList){if(title.toLowerCase().includes(mk.toLowerCase())){detectedMake=mk;break;}}
       if(!detectedMake)return;
       const key=`${yr} ${detectedMake}`;
-      if(!carMap[key])carMap[key]={make:detectedMake,year:yr,prices:[],titles:[]};
+      if(!carMap[key])carMap[key]={make:detectedMake,year:yr,prices:[]};
       carMap[key].prices.push(price);
-      carMap[key].titles.push(title);
     });
+
     const results=Object.entries(carMap).map(([key,v])=>{
       const avg=Math.round(v.prices.reduce((a,b)=>a+b,0)/v.prices.length);
       const max=Math.round(Math.max(...v.prices));
       const sold=Math.max(1,Math.round(v.prices.length/3));
       return{key,make:v.make,year:v.year,avgPrice:avg,maxPrice:max,sold,count:v.prices.length};
     }).filter(r=>r.sold>=minSales).sort((a,b)=>b.avgPrice-a.avgPrice);
+
     window._results=results;window._partQuery=query;
+
     if(!results.length){
       document.getElementById('res-list').innerHTML='<div class="loading">No matching cars found. Try adjusting year range or filters.</div>';
     }else{
@@ -326,10 +359,13 @@ async function searchByPart(){
 }
 
 function renderCarResults(results){
-  if(!results.length){document.getElementById('res-list').innerHTML='<div class="loading">Nothing found. Try lowering filters.</div>';return;}
+  if(!results.length){
+    document.getElementById('res-list').innerHTML='<div class="loading">Nothing found above your minimum price. Try lowering the filter.</div>';
+    return;
+  }
   document.getElementById('res-list').innerHTML=results.map((p,i)=>`
     <div class="card" onclick="showCarDetail(${i})">
-      ${p.price>=200?'<span class="badge hot">$$$</span>':p.revenue>300?'<span class="badge good">HOT</span>':''}
+      ${p.price>=200?'<span class="badge hot">$$$</span>':p.price>=100?'<span class="badge good">HOT</span>':''}
       <div class="card-top">
         <div class="card-name">${p.name}</div>
         <div><div class="card-price">$${p.price}</div><div class="card-sub">${p.sold} sold/mo</div></div>
@@ -342,14 +378,37 @@ function renderCarResults(results){
 function showCarDetail(i){
   const p=window._results[i];
   const url=`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(p.query)}&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`;
-  document.getElementById('detail-content').innerHTML=`<h2>${p.name}</h2><div class="car-tag"><b>${p.query}</b></div><div class="metrics"><div class="metric"><div class="metric-val">$${p.price}</div><div class="metric-lbl">avg price</div></div><div class="metric"><div class="metric-val">${p.sold}</div><div class="metric-lbl">sold/mo</div></div><div class="metric"><div class="metric-val">$${p.revenue}</div><div class="metric-lbl">revenue/mo</div></div></div><div class="metrics"><div class="metric"><div class="metric-val">$${p.minPrice}</div><div class="metric-lbl">min</div></div><div class="metric"><div class="metric-val">$${p.maxPrice}</div><div class="metric-lbl">max</div></div><div class="metric"><div class="metric-val">${p.totalResults}</div><div class="metric-lbl">total sold</div></div></div><a class="ebay-link" href="${url}" target="_blank">Check on eBay Sold Items</a>`;
+  document.getElementById('detail-content').innerHTML=`
+    <h2>${p.name}</h2>
+    <div class="car-tag"><b>${p.query}</b></div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-val">$${p.price}</div><div class="metric-lbl">avg price</div></div>
+      <div class="metric"><div class="metric-val">${p.sold}</div><div class="metric-lbl">sold/mo</div></div>
+      <div class="metric"><div class="metric-val">$${p.revenue}</div><div class="metric-lbl">revenue/mo</div></div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-val">$${p.minPrice}</div><div class="metric-lbl">min</div></div>
+      <div class="metric"><div class="metric-val">$${p.maxPrice}</div><div class="metric-lbl">max</div></div>
+      <div class="metric"><div class="metric-val">${p.totalResults}</div><div class="metric-lbl">total sold</div></div>
+    </div>
+    <a class="ebay-link" href="${url}" target="_blank">Check on eBay Sold Items</a>
+  `;
   show('s-detail');
 }
 
 function showPartDetail(i){
   const r=window._results[i],q=window._partQuery;
   const url=`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(r.year+' '+r.make+' '+q)}&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`;
-  document.getElementById('detail-content').innerHTML=`<h2>${r.year} ${r.make}</h2><div class="car-tag"><b>${q}</b></div><div class="metrics"><div class="metric"><div class="metric-val">$${r.avgPrice}</div><div class="metric-lbl">avg price</div></div><div class="metric"><div class="metric-val">${r.count}</div><div class="metric-lbl">sold</div></div><div class="metric"><div class="metric-val">$${r.maxPrice}</div><div class="metric-lbl">max price</div></div></div><a class="ebay-link" href="${url}" target="_blank">Check on eBay</a>`;
+  document.getElementById('detail-content').innerHTML=`
+    <h2>${r.year} ${r.make}</h2>
+    <div class="car-tag"><b>${q}</b></div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-val">$${r.avgPrice}</div><div class="metric-lbl">avg price</div></div>
+      <div class="metric"><div class="metric-val">${r.count}</div><div class="metric-lbl">sold</div></div>
+      <div class="metric"><div class="metric-val">$${r.maxPrice}</div><div class="metric-lbl">max price</div></div>
+    </div>
+    <a class="ebay-link" href="${url}" target="_blank">Check on eBay</a>
+  `;
   show('s-detail');
 }
 </script>
