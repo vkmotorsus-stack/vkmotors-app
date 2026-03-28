@@ -45,9 +45,9 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 .prog-fill{background:#0064d2;border-radius:4px;height:6px;width:0%;transition:width .3s}
 .prog-text{font-size:12px;color:#888;text-align:center;margin-top:6px}
 .result-item{background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.result-row{display:flex;justify-content:space-between;align-items:center}
 .result-car{font-size:15px;font-weight:600;color:#111}
 .result-price{font-size:15px;font-weight:600;color:#28a745}
-.result-row{display:flex;justify-content:space-between;align-items:center}
 .result-sub{font-size:12px;color:#888;margin-top:3px}
 .stats-bar{background:#e8f0fe;border-radius:8px;padding:8px 12px;font-size:12px;color:#444;margin-bottom:12px;display:flex;justify-content:space-between}
 </style>
@@ -181,7 +181,7 @@ const allParts = [
   'window switch','ignition switch cylinder','ignition button',
   'door lock switch','mirror switch','seat memory switch',
   'door lock actuator','trunk latch actuator','liftgate window regulator motor',
-  'sunroof motor','liftgate motor','blower motor resistor',
+  'sunroof motor','liftgate motor','blower motor',
   'power antenna motor','sliding door actuator',
   'fender flare','license plate garnish','rear spoiler brake light',
   'emblem','grille insert','bumper grille','tow hook cover','fuel door',
@@ -248,16 +248,18 @@ async function searchByCar(){
     await Promise.all(batch.map(async part=>{
       try{
         const data=await fetchPart(`${year} ${make} ${model} ${part} used`);
-        if(data&&data.success&&data.average_price>0&&data.results>0){
-          const avgPrice=parseFloat(data.average_price);
+        if(data&&data.success&&data.results>0){
+          const avgPrice=parseFloat(data.average_price)||0;
+          const maxPrice=parseFloat(data.max_price)||0;
+          const minP=parseFloat(data.min_price)||0;
           const sold=Math.max(1,Math.round(data.results/3));
-          // FIXED: строгая проверка фильтра по цене
-          if(avgPrice>=minPrice&&sold>=minSales){
+          // фильтруем по максимальной цене - если max >= minPrice значит есть дорогие продажи
+          if(maxPrice>=minPrice&&sold>=minSales&&avgPrice>0){
             results.push({
               name:part.charAt(0).toUpperCase()+part.slice(1),
               price:Math.round(avgPrice),
-              minPrice:Math.round(parseFloat(data.min_price)||0),
-              maxPrice:Math.round(parseFloat(data.max_price)||0),
+              minPrice:Math.round(minP),
+              maxPrice:Math.round(maxPrice),
               sold,
               totalResults:data.results,
               revenue:Math.round(avgPrice*sold),
@@ -360,17 +362,17 @@ async function searchByPart(){
 
 function renderCarResults(results){
   if(!results.length){
-    document.getElementById('res-list').innerHTML='<div class="loading">Nothing found above your minimum price. Try lowering the filter.</div>';
+    document.getElementById('res-list').innerHTML='<div class="loading">Nothing found. Try lowering the minimum price filter.</div>';
     return;
   }
   document.getElementById('res-list').innerHTML=results.map((p,i)=>`
     <div class="card" onclick="showCarDetail(${i})">
-      ${p.price>=200?'<span class="badge hot">$$$</span>':p.price>=100?'<span class="badge good">HOT</span>':''}
+      ${p.maxPrice>=200?'<span class="badge hot">$$$</span>':p.maxPrice>=100?'<span class="badge good">HOT</span>':''}
       <div class="card-top">
         <div class="card-name">${p.name}</div>
-        <div><div class="card-price">$${p.price}</div><div class="card-sub">${p.sold} sold/mo</div></div>
+        <div><div class="card-price">avg $${p.price}</div><div class="card-sub">${p.sold} sold/mo</div></div>
       </div>
-      <div class="card-sub" style="margin-top:5px">Revenue/mo: $${p.revenue} &nbsp;·&nbsp; max: $${p.maxPrice}</div>
+      <div class="card-sub" style="margin-top:5px">Max: $${p.maxPrice} &nbsp;·&nbsp; Revenue/mo: $${p.revenue}</div>
     </div>
   `).join('');
 }
