@@ -20,6 +20,17 @@ app.get('/health', (req, res) => {
 
 app.post('/search', async (req, res) => {
   try {
+    const body = {
+      keywords: req.body.keywords,
+      max_search_results: req.body.max_search_results || "60",
+      remove_outliers: req.body.remove_outliers || "true",
+      site_id: req.body.site_id || "0"
+    };
+
+    if (req.body.aspects && req.body.aspects.length > 0) {
+      body.aspects = req.body.aspects;
+    }
+
     const response = await fetch('https://ebay-average-selling-price.p.rapidapi.com/findCompletedItems', {
       method: 'POST',
       headers: {
@@ -27,7 +38,7 @@ app.post('/search', async (req, res) => {
         'x-rapidapi-host': 'ebay-average-selling-price.p.rapidapi.com',
         'x-rapidapi-key': RAPIDAPI_KEY
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(body)
     });
     const data = await response.json();
     res.json(data);
