@@ -22,10 +22,15 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer}
 .card:hover{border-color:#0064d2}
-.card-top{display:flex;justify-content:space-between;align-items:flex-start}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
 .card-name{font-size:15px;font-weight:600}
-.card-price{font-size:15px;font-weight:600;color:#28a745;text-align:right}
-.card-sub{font-size:12px;color:#888;margin-top:3px}
+.card-prices{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+.price-box{background:#f8f8f8;border-radius:6px;padding:6px;text-align:center}
+.price-val{font-size:14px;font-weight:700;color:#111}
+.price-val.green{color:#28a745}
+.price-val.blue{color:#0064d2}
+.price-lbl{font-size:10px;color:#888;margin-top:1px}
+.card-sub{font-size:12px;color:#888;margin-top:6px}
 .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;margin-bottom:6px}
 .hot{background:#fff0f0;color:#d00}
 .good{background:#f0fff4;color:#0a7a0a}
@@ -72,22 +77,23 @@ select,input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8p
     <div class="filters">
       <b style="font-size:14px">Filters</b>
       <div class="filter-grid">
-        <div><label>Min price ($)</label><input type="number" id="min-price" value="50" min="0" step="10"></div>
         <div><label>Min sales/mo</label><input type="number" id="min-sales" value="1" min="1"></div>
         <div><label>Sort by</label>
           <select id="sort-by">
-            <option value="price">Price (high first)</option>
+            <option value="max">Max price</option>
+            <option value="avg">Avg price</option>
             <option value="revenue">Revenue/mo</option>
             <option value="sales">Sales/mo</option>
           </select>
         </div>
-        <div><label>Parts to check</label>
-          <select id="parts-count">
-            <option value="20">Fast (20)</option>
-            <option value="40" selected>Normal (40)</option>
-            <option value="80">Full (80)</option>
-          </select>
-        </div>
+      </div>
+      <div style="margin-top:10px">
+        <label>Parts to check</label>
+        <select id="parts-count">
+          <option value="20">Fast (20)</option>
+          <option value="40" selected>Normal (40)</option>
+          <option value="80">Full (80)</option>
+        </select>
       </div>
     </div>
     <button class="btn" id="btn1" onclick="searchByCar()">Find Parts</button>
@@ -223,7 +229,6 @@ async function searchByCar(){
   const make=document.getElementById('make').value;
   const model=document.getElementById('model').value;
   const year=document.getElementById('year').value;
-  const minPrice=parseFloat(document.getElementById('min-price').value)||0;
   const minSales=parseInt(document.getElementById('min-sales').value)||1;
   const sortBy=document.getElementById('sort-by').value;
   const partsCount=parseInt(document.getElementById('parts-count').value)||40;
@@ -248,21 +253,17 @@ async function searchByCar(){
     await Promise.all(batch.map(async part=>{
       try{
         const data=await fetchPart(`${year} ${make} ${model} ${part} used`);
-        if(data&&data.success&&data.results>0){
-          const avgPrice=parseFloat(data.average_price)||0;
-          const maxPrice=parseFloat(data.max_price)||0;
-          const minP=parseFloat(data.min_price)||0;
+        if(data&&data.success&&data.results>0&&parseFloat(data.average_price)>0){
           const sold=Math.max(1,Math.round(data.results/3));
-          // фильтруем по максимальной цене - если max >= minPrice значит есть дорогие продажи
-          if(maxPrice>=minPrice&&sold>=minSales&&avgPrice>0){
+          if(sold>=minSales){
             results.push({
               name:part.charAt(0).toUpperCase()+part.slice(1),
-              price:Math.round(avgPrice),
-              minPrice:Math.round(minP),
-              maxPrice:Math.round(maxPrice),
+              avgPrice:Math.round(parseFloat(data.average_price)),
+              minPrice:Math.round(parseFloat(data.min_price)||0),
+              maxPrice:Math.round(parseFloat(data.max_price)||0),
               sold,
               totalResults:data.results,
-              revenue:Math.round(avgPrice*sold),
+              revenue:Math.round(parseFloat(data.average_price)*sold),
               query:`${year} ${make} ${model} ${part}`
             });
           }
@@ -276,7 +277,8 @@ async function searchByCar(){
     await new Promise(r=>setTimeout(r,300));
   }
 
-  if(sortBy==='price')results.sort((a,b)=>b.price-a.price);
+  if(sortBy==='max')results.sort((a,b)=>b.maxPrice-a.maxPrice);
+  else if(sortBy==='avg')results.sort((a,b)=>b.avgPrice-a.avgPrice);
   else if(sortBy==='revenue')results.sort((a,b)=>b.revenue-a.revenue);
   else results.sort((a,b)=>b.sold-a.sold);
 
@@ -337,7 +339,7 @@ async function searchByPart(){
       const max=Math.round(Math.max(...v.prices));
       const sold=Math.max(1,Math.round(v.prices.length/3));
       return{key,make:v.make,year:v.year,avgPrice:avg,maxPrice:max,sold,count:v.prices.length};
-    }).filter(r=>r.sold>=minSales).sort((a,b)=>b.avgPrice-a.avgPrice);
+    }).filter(r=>r.sold>=minSales).sort((a,b)=>b.maxPrice-a.maxPrice);
 
     window._results=results;window._partQuery=query;
 
@@ -348,9 +350,12 @@ async function searchByPart(){
         <div class="result-item" onclick="showPartDetail(${i})">
           <div class="result-row">
             <div class="result-car">${r.year} ${r.make}</div>
-            <div class="result-price">avg $${r.avgPrice}</div>
+            <div>
+              <div class="result-price">max $${r.maxPrice}</div>
+              <div style="font-size:12px;color:#888;text-align:right">avg $${r.avgPrice}</div>
+            </div>
           </div>
-          <div class="result-sub">${r.count} sold &nbsp;·&nbsp; max $${r.maxPrice}</div>
+          <div class="result-sub">${r.count} sold &nbsp;·&nbsp; ${r.sold} sold/mo</div>
         </div>
       `).join('');
     }
@@ -362,7 +367,7 @@ async function searchByPart(){
 
 function renderCarResults(results){
   if(!results.length){
-    document.getElementById('res-list').innerHTML='<div class="loading">Nothing found. Try lowering the minimum price filter.</div>';
+    document.getElementById('res-list').innerHTML='<div class="loading">Nothing found. Try reducing Min sales/mo to 1.</div>';
     return;
   }
   document.getElementById('res-list').innerHTML=results.map((p,i)=>`
@@ -370,9 +375,14 @@ function renderCarResults(results){
       ${p.maxPrice>=200?'<span class="badge hot">$$$</span>':p.maxPrice>=100?'<span class="badge good">HOT</span>':''}
       <div class="card-top">
         <div class="card-name">${p.name}</div>
-        <div><div class="card-price">avg $${p.price}</div><div class="card-sub">${p.sold} sold/mo</div></div>
+        <div style="font-size:12px;color:#888">${p.sold} sold/mo</div>
       </div>
-      <div class="card-sub" style="margin-top:5px">Max: $${p.maxPrice} &nbsp;·&nbsp; Revenue/mo: $${p.revenue}</div>
+      <div class="card-prices">
+        <div class="price-box"><div class="price-val">${p.minPrice>0?'$'+p.minPrice:'—'}</div><div class="price-lbl">min</div></div>
+        <div class="price-box"><div class="price-val green">$${p.avgPrice}</div><div class="price-lbl">avg</div></div>
+        <div class="price-box"><div class="price-val blue">$${p.maxPrice}</div><div class="price-lbl">max</div></div>
+      </div>
+      <div class="card-sub">Revenue/mo: $${p.revenue}</div>
     </div>
   `).join('');
 }
@@ -384,13 +394,13 @@ function showCarDetail(i){
     <h2>${p.name}</h2>
     <div class="car-tag"><b>${p.query}</b></div>
     <div class="metrics">
-      <div class="metric"><div class="metric-val">$${p.price}</div><div class="metric-lbl">avg price</div></div>
-      <div class="metric"><div class="metric-val">${p.sold}</div><div class="metric-lbl">sold/mo</div></div>
-      <div class="metric"><div class="metric-val">$${p.revenue}</div><div class="metric-lbl">revenue/mo</div></div>
+      <div class="metric"><div class="metric-val">$${p.minPrice}</div><div class="metric-lbl">min sold</div></div>
+      <div class="metric"><div class="metric-val" style="color:#28a745">$${p.avgPrice}</div><div class="metric-lbl">avg price</div></div>
+      <div class="metric"><div class="metric-val" style="color:#0064d2">$${p.maxPrice}</div><div class="metric-lbl">max sold</div></div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="metric-val">$${p.minPrice}</div><div class="metric-lbl">min</div></div>
-      <div class="metric"><div class="metric-val">$${p.maxPrice}</div><div class="metric-lbl">max</div></div>
+      <div class="metric"><div class="metric-val">${p.sold}</div><div class="metric-lbl">sold/mo</div></div>
+      <div class="metric"><div class="metric-val">$${p.revenue}</div><div class="metric-lbl">revenue/mo</div></div>
       <div class="metric"><div class="metric-val">${p.totalResults}</div><div class="metric-lbl">total sold</div></div>
     </div>
     <a class="ebay-link" href="${url}" target="_blank">Check on eBay Sold Items</a>
@@ -405,9 +415,9 @@ function showPartDetail(i){
     <h2>${r.year} ${r.make}</h2>
     <div class="car-tag"><b>${q}</b></div>
     <div class="metrics">
-      <div class="metric"><div class="metric-val">$${r.avgPrice}</div><div class="metric-lbl">avg price</div></div>
-      <div class="metric"><div class="metric-val">${r.count}</div><div class="metric-lbl">sold</div></div>
-      <div class="metric"><div class="metric-val">$${r.maxPrice}</div><div class="metric-lbl">max price</div></div>
+      <div class="metric"><div class="metric-val" style="color:#28a745">$${r.avgPrice}</div><div class="metric-lbl">avg price</div></div>
+      <div class="metric"><div class="metric-val" style="color:#0064d2">$${r.maxPrice}</div><div class="metric-lbl">max price</div></div>
+      <div class="metric"><div class="metric-val">${r.count}</div><div class="metric-lbl">total sold</div></div>
     </div>
     <a class="ebay-link" href="${url}" target="_blank">Check on eBay</a>
   `;
